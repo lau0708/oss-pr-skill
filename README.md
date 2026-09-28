@@ -60,7 +60,7 @@ caller can construct is a wasted day. Prove it's reachable before you chase it.
 
 ## What it covers
 
-| Step | |
+| Step | What happens |
 | --- | --- |
 | 0 | Screen repo fit — alive *and* merges outside contributions |
 | 1 | Recon — competing-PR check, merge-lane measurement, when to pre-ask |
