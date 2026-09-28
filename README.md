@@ -1,8 +1,8 @@
 # oss-pr
 
-**A [Claude Code](https://claude.com/claude-code) skill that turns "I should contribute to open source" into a repeatable, evidence-driven process.**
+**一个 Claude Code skill：把「我应该给开源做点贡献」变成一套可复现、以证据驱动的流程。**
 
-It has been used to land real fixes in [deer-flow](https://github.com/bytedance/deer-flow) — an 83k★ LangGraph agent project — twice, plus a third still in review.
+它已被用于向 [deer-flow](https://github.com/bytedance/deer-flow)（83k★ 的 LangGraph Agent 项目）提交真实修复 —— 两个已合并，第三个在审核中。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-8A63D2)](https://claude.com/claude-code)
@@ -10,134 +10,121 @@ It has been used to land real fixes in [deer-flow](https://github.com/bytedance/
 
 ---
 
-## Results
+## 实战成果
 
-| PR | Change | Outcome | Time to merge |
+| PR | 改动 | 结果 | 合并耗时 |
 | --- | --- | --- | --- |
-| [#5663](https://github.com/bytedance/deer-flow/pull/5663) | `fix(runtime)`: share one change position across an atomic thread operation | **Merged** | ~12 h |
-| [#5703](https://github.com/bytedance/deer-flow/pull/5703) | `fix(skills)`: resolve the user-scoped install content scan from its own config | **Merged** | ~8 h |
-| [#5998](https://github.com/bytedance/deer-flow/pull/5998) | `fix(channels)`: grant sandbox read bits to Feishu/DingTalk inbound uploads | In review | — |
+| [#5663](https://github.com/bytedance/deer-flow/pull/5663) | `fix(runtime)`：让原子线程操作共享同一个变更位置 | **已合并** | 约 12 小时 |
+| [#5703](https://github.com/bytedance/deer-flow/pull/5703) | `fix(skills)`：用户级安装的内容扫描改从自身配置解析 | **已合并** | 约 8 小时 |
+| [#5998](https://github.com/bytedance/deer-flow/pull/5998) | `fix(channels)`：为 Feishu/DingTalk 入站附件补上沙箱读权限位 | 审核中 | — |
 
-All three were **self-initiated** — no issue was filed, no maintainer was pre-asked. Each is
-a small diff (~110–145 lines including tests) that fixes a contract the repo had already
-documented and one implementation had silently broken.
+三个都是**自主发现**的：没有提 issue，也没有事先询问维护者。每个 diff 都很小（含测试约 110–145
+行），修的却是仓库自己已经写进文档、而某个实现悄悄违反了的契约。
 
-## Why this exists
+## 为什么做这个
 
-Most first-time contributions to a large project don't die because the code is wrong. They
-die earlier: the contributor picked an issue three other people had already claimed, wrote a
-fix without a failing test, made a claim they couldn't verify, and opened a PR that a
-maintainer had no reason to trust.
+大多数第一次给大型项目提 PR 的人，不是死在代码写错，而是死得更早：抢了一个已经被三个人认领的
+issue，改完没有失败测试，做了无法验证的断言，最后提了一个维护者没有理由相信的 PR。
 
-This skill encodes the opposite process — the one that produced the three PRs above:
+这个 skill 固化的是一套相反的做法 —— 也就是产出上面三个 PR 的那套：
 
-- **Hunt bugs, don't queue for issues.** In fast-moving repos the issue lane is a race, not
-  a queue — authors file the issue and open the PR in one motion. The durable lane is
-  finding an *internal invariant violation*: a contract the repo documents that one
-  implementation honours and a sibling does not.
-- **Prove it before you fix it.** The failing test goes red on pristine `main`, *for the
-  stated reason*, with a control assertion that passes before and after — so the red is
-  attributable to the change, not to the test scaffolding.
-- **Evidence beats guesses.** When `main` itself is broken locally, don't chase a green suite
-  you can't have. Diff the failure set against a pristine worktree and show identical counts.
+- **自己挖 bug，不排队抢 issue。** 在活跃仓库里，issue 赛道是竞速而不是队列：作者往往在同一时间
+  既提 issue 又提 PR。可持续的赛道是找**内部不变量违反** —— 仓库已经文档化的某个契约，一个实现
+  遵守，它的兄弟实现不遵守。
+- **先证明，再修复。** 失败的测试要在干净的 `main` 上、因为**声称的那个原因**变红，并配一个修复
+  前后都通过的对照断言 —— 这样「红」才能归因于你的改动，而不是测试脚手架本身。
+- **证据优先于猜测。** 当 `main` 在本机就是坏的，不要追一个拿不到的全绿。把失败集合与干净
+  worktree 对比，给出完全一致的计数。
 
-## The three ideas that do the work
+## 三个真正起作用的想法
 
-**1. Test asymmetry is the bug-finder.** An interface with two or more implementations where
-only one has a regression test for the invariant — the untested sibling is where the bug
-lives. This single heuristic found both merged PRs.
+**1. 测试不对称就是 bug 定位器。** 同一个接口有多个实现，其中只有一个为该不变量写了回归测试 ——
+没被测到的那个兄弟实现，就是 bug 所在。仅凭这一条启发式，就找到了两个已合并的 PR。
 
-**2. Bugs have reusable shapes.** Two are encoded so far:
+**2. bug 有可复用的形状。** 目前固化了两种：
 
-- *Copy-override loses an argument* — a subclass re-implements a parent method and silently
-  drops something the parent passed, so the two halves of one operation consult different
-  state.
-- *One side-effect owner, two handoff styles* — a cross-cutting side-effect lives in a shared
-  ingress path; implementations that re-implement the work instead of delegating never get it.
+- **复制式覆写丢了参数** —— 子类重新实现父类方法时，悄悄漏掉了父类传进去的东西，导致同一个操作
+  的两半读取了不同的配置/状态。
+- **一个副作用，两种交接方式** —— 某个横切副作用由共享的入口路径统一施加；那些选择自己重实现、
+  而不是委托给入口路径的实现，就永远拿不到它。
 
-**3. Reachability is a gate, not an afterthought.** An elegant divergence that no production
-caller can construct is a wasted day. Prove it's reachable before you chase it.
+**3. 可达性是准入门槛，不是事后补充。** 一个再优雅、但没有任何生产调用路径能构造出来的差异，
+追一天也是白费。先证明可达，再决定要不要追。
 
-## What it covers
+## 覆盖的流程
 
-| Step | What happens |
+| 步骤 | 做什么 |
 | --- | --- |
-| 0 | Screen repo fit — alive *and* merges outside contributions |
-| 1 | Recon — competing-PR check, merge-lane measurement, when to pre-ask |
-| 2 | Pick the work — self-found invariant over a raced issue; define the boundary |
-| 3 | Prove it — red on base for the stated reason, plus a control assertion |
-| 4 | Fix minimally — one production line beats a refactor |
-| 5 | Verify locally, exactly as CI does; baseline-compare if the env is broken |
-| 6–7 | Commit conventionally; open the PR in the repo's own template |
-| 8 | Watch CI and review — three distinct states, never "on track" without evidence |
-| 9–10 | Collect the interview narrative; report terse |
+| 0 | 判断这个仓库值不值得投入 —— 还活着，**并且**会合并外部贡献 |
+| 1 | 侦察 —— 查竞品 PR、量化合并通道、判断要不要先问维护者 |
+| 2 | 选活 —— 自主发现的不变量 bug 优先于被抢的 issue；先划定边界 |
+| 3 | 先证明 —— 在 base 上因为声称的原因变红，并配对照断言 |
+| 4 | 最小修复 —— 一行生产代码胜过一次重构 |
+| 5 | 本地按 CI 的方式验证；环境坏了就做基线对比 |
+| 6–7 | 规范提交；按仓库自己的模板开 PR |
+| 8 | 盯 CI 和 review —— 三种状态严格区分，没有证据不说「一切正常」 |
+| 9–10 | 沉淀面试叙事；向用户简报 |
 
-## Install
+## 安装
 
 ```bash
 git clone https://github.com/lau0708/oss-pr-skill ~/.claude/skills/oss-pr
 ```
 
-Claude Code picks it up automatically and triggers on requests like *"提 PR"*, *"find the
-next bug in \<repo\>"*, *"handle the review"*, *"CI is red"*, or *"watch the PR"*.
+Claude Code 会自动加载，并在诸如「提 PR」「挖下一个 bug」「处理 review」「看 CI 红了」「监控 PR」
+这类请求上触发。
 
-## Layout
+## 目录结构
 
 ```
-SKILL.md                         # the repo-agnostic spine (steps 0–10)
-reference/agent-project-audit.md # 7 dimensions to audit an agent project for real bugs
-reference/interview-narrative.md # how to turn the work into interview material
-reference/deerflow.md            # worked appendix: bytedance/deer-flow
-script/pr-watch.sh               # table-driven PR watcher
+SKILL.md                         # 与仓库无关的主干流程（步骤 0–10）
+reference/agent-project-audit.md # 审计 Agent 项目真实 bug 的 7 个维度
+reference/interview-narrative.md # 如何把这段工作变成面试素材
+reference/deerflow.md            # 实战附录：bytedance/deer-flow
+script/pr-watch.sh               # 表驱动的 PR 监控脚本
 ```
 
-Adding a repo is one file: `reference/<repo>.md` with its norms, merge lane, swept-and-dry
-areas, reusable bug shapes, and CI mechanics.
+新增一个仓库只需一个文件：`reference/<仓库>.md`，写它的规矩、合并通道、已排查干净的区域、
+可复用的 bug 形状，以及 CI 机制。
 
 ## `pr-watch.sh`
 
 ```bash
-# edit the WATCH array first: "owner/repo number label"
+# 先编辑 WATCH 数组："owner/repo number label"
 bash script/pr-watch.sh
 ```
 
-Each stdout line is one notification: human maintainer comments and reviews (bots, the CLA
-app, and your own comments are filtered out), CI state transitions, and a final
-merged/closed line. Polls every 60s. Written to be portable to macOS's stock bash 3.2 — no
-associative arrays, no `mapfile` — because that's the shell a lot of contributors actually
-have.
+每行 stdout 就是一条通知：来自真人的维护者评论与 review（机器人、CLA 应用和你自己的评论都会被
+过滤掉）、CI 状态迁移，以及最后一行的已合并/已关闭。每 60 秒轮询一次。刻意写成兼容 macOS 自带的
+bash 3.2 —— 不用关联数组、不用 `mapfile` —— 因为那正是很多贡献者手上真实可用的 shell。
 
-## Design notes
+## 设计取舍
 
-- **It stops and asks rather than silently expanding scope.** Fix needing files outside the
-  agreed boundary, a change that would break a caller, two defensible designs with a real
-  tradeoff, a new dependency — all halt for a decision. Adapting pseudocode and differing
-  test mechanics do not.
-- **An unverifiable claim is treated as worse than no claim.** If a behaviour can't be
-  tested, the skill says so instead of asserting it.
-- **One commit per independently verifiable idea**, not per file — these repos squash-merge,
-  so the split exists for the reviewer.
+- **它会停下来问你，而不是悄悄扩大范围。** 修复需要动到约定边界外的文件、改动会破坏调用方、
+  有两种各有真实代价的合理设计、需要引入新依赖 —— 这些都会停下来等决定。而照着伪代码适配真实
+  代码、补上计划里漏掉的错误处理、调整测试写法，则可以自行处理，只需说明你做了什么。
+- **无法验证的断言，比没有断言更糟。** 某个行为如果测不了，skill 会选择直说，而不是硬写一句结论。
+- **每个「可独立验证的想法」一个 commit**，而不是每个文件一个 —— 这些仓库是 squash 合并，
+  拆分的意义在于让 reviewer 能分开验证。
 
-## 中文摘要
+## English Abstract
 
-**oss-pr** 是一个 Claude Code skill，把「给开源项目提 PR」变成一套可复现、以证据驱动的流程。
-它已经用于向 **deer-flow**（83k★ 的 LangGraph Agent 项目）提交真实修复：两个 PR 已合并
-（分别约 8 小时、12 小时内合并），第三个在审核中。
+**oss-pr** is a [Claude Code](https://claude.com/claude-code) skill that turns "I should
+contribute to open source" into a repeatable, evidence-driven process. It has been used to
+land real fixes in [deer-flow](https://github.com/bytedance/deer-flow), an 83k★ LangGraph
+agent project — two merged (in ~8 h and ~12 h), a third in review. All three were
+self-initiated, with no issue filed and no maintainer pre-asked.
 
-核心不是代码，而是方法：
+The value isn't the code, it's the method: hunt invariant violations instead of queuing for
+issues; make the failing test go red on pristine `main` *for the stated reason*, with a
+control assertion that passes before and after; and prefer evidence over guesses when the
+local environment is broken.
 
-- **自己挖 bug，不排队抢 issue** —— 在活跃仓库里 issue 赛道是竞速而非队列；可持续的赛道是找
-  *内部不变量违反*：仓库已文档化的契约，某个实现遵守、它的兄弟实现不遵守。
-- **先证明再修复** —— 失败的测试要在干净的 `main` 上、因为**声称的那个原因**变红，并配一个修复
-  前后都通过的对照断言，让「红」可归因于改动本身。
-- **证据优先于猜测** —— 本地环境坏掉时不去追一个不可能拿到的全绿，而是与干净 worktree 对比失败
-  集合，给出完全一致的计数。
-
-三个真正起作用的想法：**测试不对称**（同一接口只有一个实现有回归测试，没被测的兄弟实现就是
-bug 所在）、**可复用的 bug 形状**（copy-override 丢参数 / 一个副作用两种交接方式）、以及
-**可达性是准入门槛**（优雅但没有任何生产调用路径能触发的差异，不值得追）。
-
-安装：`git clone https://github.com/lau0708/oss-pr-skill ~/.claude/skills/oss-pr`
+Three ideas carry the weight: **test asymmetry** (of several implementations of one
+interface, the one without a regression test is where the bug lives), **reusable bug
+shapes** (a copy-override that silently drops an argument; a side-effect owned by a shared
+ingress path that self-persisting implementations never inherit), and **reachability as a
+gate** (an elegant divergence no production caller can construct is a wasted day).
 
 ## License
 
