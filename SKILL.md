@@ -1,39 +1,34 @@
 ---
 name: oss-pr
-description: End-to-end workflow for landing an open-source pull request — screen whether the repo is worth contributing to, recon its merge lane, prefer a self-found invariant bug over a raced issue, define the problem boundary, prove it with a red/green test, verify locally, open the PR with the repo's required template sections, monitor CI, handle review, and collect the interview narrative. Use when the user asks to 提 PR / 挖下一个 bug / 处理 review / 看 CI 红了 / 监控 PR / 分析某个开源项目的贡献点, or when contributing to any external GitHub repo. Repo-specific rules live in reference/.
+description: 端到端地把一个开源 PR 落地 —— 判断仓库值不值得投入、侦察它的合并通道、优先自己挖不变量 bug 而不是去抢 issue、划定问题边界、用红/绿测试证明、本地验证、按仓库自己的模板开 PR、盯 CI、处理 review，并沉淀面试叙事。当用户提出「提 PR」「挖下一个 bug」「处理 review」「看 CI 红了」「监控 PR」「分析某个开源项目的贡献点」这类请求，或需要给任何外部 GitHub 仓库做贡献时使用。仓库相关的规则放在 reference/ 下。
 ---
 
-# Landing an Open-Source PR
+# 落地一个开源 PR
 
-Three reasons to do this, in the user's order of priority: it deepens understanding of the
-technology, it is visible to interviewers, and it is strong interview material. A merged
-PR is the artifact; **the narrative is the product** — see `reference/interview-narrative.md`.
+做这件事有三个理由，按用户的优先级排序：它加深你对技术的理解、它被面试官看得见、它是很强的面试素材。合并的 PR 是产物，**叙事才是产品** —— 见 `reference/interview-narrative.md`。
 
-Repo-specific rules live in `reference/<repo>.md`. Read the relevant one before starting;
-the spine below is repo-agnostic.
+仓库相关的规则放在 `reference/<repo>.md`。开始前先读对应那份；下面的主干与具体仓库无关。
 
-## 0. Is this repo worth the time?
+## 0. 这个仓库值不值得投入时间？
 
-Before investing days, confirm the project is alive *and* will merge outside work.
+在投入几天之前，先确认项目还活着，**并且**会合并外部贡献。
 
-| Signal | Healthy |
+| 信号 | 健康 |
 | --- | --- |
-| Last commit | within ~1 month |
-| Issues closed : opened | ratio > 1 |
-| PR response time | usually < 2 weeks |
-| Release cadence | monthly or quarterly |
+| 最近一次提交 | 约 1 个月内 |
+| issue 关闭 : 新开 | 比值 > 1 |
+| PR 响应时间 | 通常 < 2 周 |
+| 发版节奏 | 每月或每季度 |
 
-Find candidates with GitHub search, e.g.
-`topic:ai-agent stars:>1000 pushed:>YYYY-MM-DD`. Then measure the **outside-contributor
-merge rate** (step 1) — a repo can be perfectly alive and still merge only its own
-maintainers' PRs, which fails this step no matter how healthy the table looks.
+用 GitHub 搜索找候选，例如 `topic:ai-agent stars:>1000 pushed:>YYYY-MM-DD`。然后衡量
+**外部贡献者的合并率**（步骤 1）—— 一个仓库完全可能很活跃，却只合并自己维护者的 PR；那样无论
+上面的表多好看，这一步都不通过。
 
-## 1. Recon before writing any code
+## 1. 写任何代码之前先侦察
 
-- Confirm the **fork** and the **branch convention** (`<type>/<slug>`, e.g.
-  `fix/memory-run-store-shared-change-position`). Push to a remote named `fork`.
-- **Check for competing PRs first.** Nothing wastes more time than a fix three people
-  already opened:
+- 确认 **fork** 和 **分支命名约定**（`<type>/<slug>`，例如
+  `fix/memory-run-store-shared-change-position`）。推到一个名为 `fork` 的 remote。
+- **先查有没有竞品 PR。** 没有什么比三个人已经提过的修复更浪费时间：
 
   ```bash
   gh api "search/issues?q=repo:OWNER/REPO+is:pr+<keywords>+in:title,body" \
@@ -41,162 +36,133 @@ maintainers' PRs, which fails this step no matter how healthy the table looks.
   gh pr list --repo OWNER/REPO --search "<keyword>" --state all --limit 30
   ```
 
-- **Measure the merge lane** in one sweep: who merges, merge latency, and whether
-  *self-invented* PRs from outside land at all or only issue-linked ones. This decides
-  which lane you hunt in. The recipe is in `reference/deerflow.md`.
-- **Decide whether to ask the maintainer before you build.**
-  - An **architectural change or a new feature**: post a short issue/Discussion comment
-    first — objective problem, proposed direction, "would you accept a PR like this?".
-    Cheap insurance against designing something they will reject.
-  - An **invariant-violation bug fix pinned by a doc**: skip it and open the PR directly.
-    Both deer-flow PRs landed that way. When the contract is written down and the diff is a
-    few lines, pre-asking only adds latency.
+- **一次性摸清合并通道**：谁在合、合并延迟多少、以及外部贡献者*自己发明*的 PR 到底能不能进，
+  还是只有挂着 issue 的才能进。这决定了你该去哪个赛道找。配方在 `reference/deerflow.md`。
+- **决定要不要在动手前先问维护者。**
+  - **架构级改动或新功能**：先发一条简短的 issue / Discussion 评论 —— 客观的问题、你建议的
+    方向、「这样的 PR 你们会接受吗？」。这是防止你设计出他们必然拒绝的东西的廉价保险。
+  - **由文档钉死的不变量违规 bug 修复**：跳过它，直接开 PR。deer-flow 的两个 PR 都是这么落地
+    的。当契约白纸黑字写着、diff 又只有几行时，先问只会增加延迟。
 
-## 2. Pick the work
+## 2. 选活
 
-**Issue lane** — usually saturated, and often a *race*, not a queue. Measure it before
-spending time: of the issues opened in the last 2–3 weeks, how many already have a linked
-PR, and what is the median issue→first-PR delay? If most are already claimed and the
-latency is hours (not days), authors are filing the issue and the PR in one motion. Stop
-screening issues; the lane is closed.
+**issue 赛道** —— 通常已经饱和，而且往往是**竞速**而不是排队。花时间之前先量化：最近 2–3 周开的
+issue 里，有多少已经挂了 PR？issue → 首个 PR 的中位延迟是多少？如果大多已被认领、延迟是小时级
+（而不是天级），说明作者是在同一个动作里既提 issue 又提 PR。别再筛 issue 了，这条赛道已经关闭。
 
-**Self-found lane** — the durable one. Hunt an **internal invariant violation**: a
-contract the repo documents (an `AGENTS.md`, a docstring, a reference implementation) that
-one implementation honours and a sibling implementation does not. For an AI-agent project,
-generate candidates with the seven-dimension audit in `reference/agent-project-audit.md`.
+**自主发现赛道** —— 可持续的那条。去找**内部不变量违反**：仓库文档化的某个契约
+（`AGENTS.md`、docstring、某个参考实现），一个实现遵守、它的兄弟实现不遵守。对 AI Agent 项目，
+用 `reference/agent-project-audit.md` 里的七个维度来生成候选。
 
-The fingerprint of the best bugs is **test asymmetry**: an interface with two or more
-implementations where only one has a regression test for the invariant. The untested
-sibling is where the bug lives.
+最好的 bug 的指纹是**测试不对称**：一个接口有两个或更多实现，其中只有一个是给该不变量写了回归
+测试的。没被测到的那个兄弟实现，就是 bug 所在。
 
-Reusable shapes:
+可复用的形状：
 
-- **Copy-override lost an argument** — a subclass re-implements a parent method and drops
-  an argument the parent passed, so the two halves of one operation consult different
-  config/state. The tell is that the parent had a regression test and the override has
-  none. (This shape found both deer-flow PRs.)
-- **Multi-backend parity** — memory/redis, memory/sql, file/sql implementations of one
-  interface. Sweep the whole family once; a swept-and-dry set rarely hides a second bug.
-- **Beware seductive dead ends.** Before chasing any divergence, prove it is *reachable*
-  from a production caller. A masked difference no caller can construct is a wasted day,
-  however elegant it looks.
+- **复制式覆写丢了参数** —— 子类重新实现父类方法时丢掉了父类传进去的一个参数，导致同一个操作的
+  两半查询了不同的配置/状态。特征是父类有回归测试、覆写没有。（deer-flow 的两个 PR 都是这个形状
+  找到的。）
+- **多后端同构性** —— 同一个接口的 memory/redis、memory/sql、file/sql 实现。整个家族一次性扫
+  完；扫干净的一组很少藏着第二个 bug。
+- **警惕诱人的死胡同。** 在追任何分歧之前，先证明它**能从生产调用路径到达**。一个没有任何调用者
+  能构造出来的、被掩盖的差异，再优雅也是白费一天。
 
-**Then define the boundary before coding** — this is what keeps the PR reviewable:
+**然后在写代码前划定边界** —— 这才是让 PR 可审的关键：
 
-- **Core problem** — one sentence.
-- **Out of scope** — 2–3 things you will deliberately *not* touch.
-- **Success criteria** — how you will know it worked; quantified if possible.
-- **Constraints** — do not break existing callers; keep one PR to ~≤300 lines; split only
-  where a reviewer would want to verify the parts independently.
+- **核心问题** —— 一句话。
+- **不在范围内** —— 2–3 件你明确**不**碰的事。
+- **成功标准** —— 你怎么知道它成了；能量化就量化。
+- **约束** —— 不破坏现有调用方；一个 PR 控制在约 ≤300 行；只在与 reviewer 需要分开验证的地方
+  拆分。
 
-## 3. Prove it before you fix it
+## 3. 先证明，再修复
 
-- Write the failing test **on pristine base** and watch it fail *for the stated reason*.
-- Keep a **control assertion** on the correct implementation that passes before *and*
-  after — this makes the red attributable to your change rather than to the test
-  scaffolding. A reviewer reproduced exactly this on deer-flow #5703.
-- Cover three things: the **happy path**, the **boundary** (empty/oversized/failure input),
-  and **compatibility** (the old usage still behaves the same). The control assertion *is*
-  the compatibility case.
-- If a fallback can fail in either direction, pin **both** directions.
-- Record the exact red assertion text (`AssertionError: assert 'installed' == 'blocked'`)
-  — it goes in the PR body.
+- 在**干净的 base** 上写失败的测试，并看着它因为**声称的那个原因**变红。
+- 在正确的实现上留一个**对照断言**，它在改动**前后都通过** —— 这样「红」才能归因于你的改动，
+  而不是测试脚手架本身。reviewer 在 deer-flow #5703 上正是复现了这一点。
+- 覆盖三件事：**正常路径**、**边界**（空/超大/失败输入）、以及**兼容性**（旧用法行为不变）。
+  对照断言*就是*兼容性用例。
+- 如果某个 fallback 可能朝两个方向失败，两个方向都钉住。
+- 记下确切的红色断言文本（`AssertionError: assert 'installed' == 'blocked'`）—— 它要写进 PR
+  正文。
 
-## 4. Fix minimally
+## 4. 最小修复
 
-One production line beats a refactor. Do not tidy neighbouring code; blast radius is a
-review cost. Threading a parameter through three call sites is fine when the invariant
-demands it, and nothing beyond that. Prefer extending over modifying; if you must modify a
-shared function, change only what the invariant requires.
+一行生产代码胜过一次重构。不要顺手整理邻近代码；影响面就是 review 成本。当不变量要求时，把一个
+参数穿过三个调用点是合适的，但也仅止于此。优先扩展而不是修改；如果必须改一个共享函数，只改不变量
+要求的那部分。
 
-## 5. Verify locally, exactly as CI does
+## 5. 本地验证，完全按 CI 的方式
 
-- **Establish the baseline first:** confirm the base branch is green before you change
-  anything. Then any later failure is attributable.
-- Run the lint/format commands **literally** as CI runs them (deer-flow:
-  `cd backend && make lint`, and CI additionally enforces `ruff format --check`).
-- Run the **targeted** test files, not just a smoke subset.
-- If the environment is broken (a dependency that won't import), do **not** chase a green
-  full suite you cannot have. Run the failing subset against pristine base and against
-  your branch, and show **identical counts**. Put that table in the PR body.
+- **先建立基线：** 动手之前确认 base 分支是绿的。之后任何失败才可归因。
+- **逐字**执行 CI 跑的 lint/format 命令（deer-flow：`cd backend && make lint`，且 CI 额外强制
+  `ruff format --check`）。
+- 跑**目标**测试文件，而不只是冒烟子集。
+- 如果环境坏了（某个依赖 import 不进来），**不要**去追一个你拿不到的全绿。把失败的子集分别跑在
+  干净的 base 和你的分支上，给出**完全一致的计数**。把那张表放进 PR 正文。
 
-## 6. Commit and push
+## 6. 提交与推送
 
-- Conventional commit: `fix(scope): ...`.
-- Split into the smallest number of commits a reviewer can verify independently — usually
-  one, two when a review follow-up is a genuinely separate idea. These repos squash-merge,
-  so the split is for *review*, not for history; over-splitting is noise.
-- Push to `fork`.
+- 规范提交：`fix(scope): ...`。
+- 拆成 reviewer 能独立验证的**最少**提交数 —— 通常一个，当 review 的后续改动是一个真正独立的
+  想法时是两个。这些仓库是 squash 合并，所以拆分是为了*审阅*，不是为了历史；拆得太碎就是噪音。
+- 推到 `fork`。
 
-## 7. Open the PR
+## 7. 开 PR
 
-- Fill the repo's **own** template. Never delete a required section — look for a "Bug fix
-  verification" / "AI assistance" style section and fill it honestly.
-- Body shape that has worked:
-  - **Why / Problem** — the invariant, with `file:line` for both the correct *and* the
-    divergent call site.
-  - **What changed / Solution** — the minimal change, and the case that deliberately does
-    *not* change.
-  - **Bug fix verification** — red assertion on base, green on the branch, plus the control
-    that passes in both.
-  - **Validation / Testing** — commands and their output; the baseline table if the env is
-    broken.
-  - **Notes for reviewer** — flag deliberate decisions and where you want scrutiny. (On
-    #5703 this is where I said no Surface-area checkbox matched the path actually changed —
-    better to say so than let a reviewer hunt for the mismatch.)
-  - **AI assistance** — disclose the tool and state what you verified yourself.
-- Re-read your own diff before opening. You are the first reviewer.
+- 填仓库**自己的**模板。永远不要删掉必需章节 —— 留意有没有「Bug fix verification」/
+  「AI assistance」这类章节，如实填写。
+- 一直有效的正文结构：
+  - **Why / Problem** —— 不变量是什么，并给出正确**和**分歧调用点的 `file:line`。
+  - **What changed / Solution** —— 最小改动，以及刻意**不**改的那个用例。
+  - **Bug fix verification** —— base 上的红色断言、分支上的绿色，外加两边都通过的对照。
+  - **Validation / Testing** —— 命令与输出；环境坏了就附基线对比表。
+  - **Notes for reviewer** —— 标出刻意的决定和你希望被细看的地方。（在 #5703 上我在这里说明：
+    没有任何一个 Surface-area 勾选框能对应到实际改动的路径 —— 说出来，比让 reviewer 自己去
+    找这个不匹配要好。）
+  - **AI assistance** —— 披露工具，并说明哪些是你自己验证的。
+- 开 PR 前重读自己的 diff。你是第一个 reviewer。
 
-## 8. Watch and respond
+## 8. 盯 CI 与回应
 
-Keep these three states distinct — never report "on track" without `gh pr checks <N>`:
+严格区分这三种状态 —— 没有 `gh pr checks <N>` 就不要说「一切正常」：
 
-- **BLOCKED on you** — unsigned CLA. Needs the *user's own* login; you cannot clear it.
-  It is a silent, indefinite stall if nobody notices.
-- **Waiting on a maintainer** — workflow approval (fork PRs often need one click before
-  *any* CI runs) or a required review. `mergeStateStatus: BLOCKED` alone usually means
-  "awaiting required review", not "broken".
-- **Genuinely broken** — read the failing job before blaming your diff. Check whether the
-  failure is main-side drift: `git log origin/main -- <the failing file>`. Merging `main`
-  in is often the entire fix.
+- **卡在你这里** —— CLA 未签。需要**用户本人**的登录才能清；你清不了。如果没人注意到，它会无声
+  地无限期停滞。
+- **在等维护者** —— 工作流审批（fork PR 经常要先被点一次「Approve and run workflows」，之后
+  才有任何 CI 会跑）或一个必需的 review。单独的 `mergeStateStatus: BLOCKED` 通常意味着「在等必需
+  review」，而不是「坏了」。
+- **真的坏了** —— 先读失败的 job，再怪自己的 diff。检查是不是 main 侧的漂移：
+  `git log origin/main -- <the failing file>`。把 `main` 合进来往往就是全部修复。
 
-Review handling:
+处理 review：
 
-- Reply to inline comments. Implement scoped follow-ups and **bundle them into the same
-  PR** unless the reviewer asks to split.
-- If you push after the reviewer verified a specific SHA, **say so plainly** — good
-  reviewers read the cited files at the head SHA and will notice it moved.
-- Match their rigor: if they reproduced red/green in a clean worktree, verify your *new*
-  test actually fails when you break the thing it pins. A test that passes under a
-  deliberate regression is worthless.
+- 回复行内评论。把有边界的后续改动实现出来并**并进同一个 PR**，除非 reviewer 要求拆开。
+- 如果你在 reviewer 验证了某个具体 SHA 之后又推了提交，**要明说** —— 好的 reviewer 会按 head SHA
+  去读你引用的文件，他们会发现它变了。
+- 对齐他们的严格程度：如果他们在干净的 worktree 里复现了红/绿，那你也去验证你的*新*测试在故意
+  引入回归时确实会失败。一个在故意回归下依然通过的测试毫无价值。
 
-Use `script/pr-watch.sh` to watch PRs for maintainer activity and CI transitions instead of
-polling by hand.
+用 `script/pr-watch.sh` 盯 PR 的维护者活动和 CI 状态迁移，而不是手动轮询。
 
-## 9. Collect the narrative
+## 9. 沉淀叙事
 
-Maintain the running note described in `reference/interview-narrative.md` as you go — the
-invariant in one sentence, the decisions and the rejected alternatives, the obstacles and
-how you escaped them, and the evidence quoted verbatim (red assertion text, `file:line`,
-and the maintainer's own review sentences). Reconstructing this later produces generic
-answers; capturing it at each transition produces specific ones.
+一边做一边维护 `reference/interview-narrative.md` 里描述的那份随手笔记：用一句话写下不变量、
+做过与否决过的决定、遇到的障碍以及怎么脱身的、还有逐字引用的证据（红色断言文本、`file:line`、
+以及维护者 review 的原话）。事后重建只会得到泛泛的答案；在每个转折点记下来才会得到具体的答案。
 
-## 10. Report to the user, terse
+## 10. 向用户简报，简短
 
-What changed (commit + branch), current PR state, and what is next. Flag blockers
-explicitly and name who can clear them.
+改了什么（commit + 分支）、PR 当前状态、下一步是什么。明确标出阻塞项，并点名谁才能解除它。
 
-## Cross-cutting discipline
+## 贯穿始终的纪律
 
-- **Stop and ask, do not silently expand.** Stop when the fix needs files outside the
-  agreed boundary, when the change cannot be made without breaking a caller, when there are
-  two reasonable designs with a real tradeoff, or when a new dependency is needed. Adapting
-  pseudocode to the real code, adding error handling the plan omitted, and differing test
-  mechanics are all fine to just do — but say what you did.
-- An unverifiable claim is worse than no claim. If you cannot test a behaviour, say so.
-- Distinguish "my change broke it" from "it was already broken" with evidence (baseline
-  counts, `git log origin/main -- <file>`), never with a guess.
-- After a PR merges, update the user's memory with what was *non-obvious* — maintainer
-  behaviour, lane saturation, environment breakage. Not file paths or conventions the repo
-  already records.
-- Adding a new repo is one file: `reference/<repo>.md` plus a row in `script/pr-watch.sh`.
+- **停下来问，不要悄悄扩大范围。** 当修复需要动到约定边界外的文件、改动无法在不破坏调用方的
+  前提下完成、有两种各有真实代价的合理设计、或需要引入新依赖时，都停下来等决定。而照着伪代码
+  适配真实代码、补上计划里漏掉的错误处理、调整测试写法，则可以直接做 —— 但要说明你做了什么。
+- 无法验证的断言，比没有断言更糟。如果某个行为测不了，就直说。
+- 用证据区分「我的改动弄坏了它」和「它本来就是坏的」（基线计数、
+  `git log origin/main -- <file>`），永远不要靠猜。
+- PR 合并后，把**非显而易见**的东西写进用户的记忆 —— 维护者的行为、赛道饱和程度、环境损坏。
+  不要记文件路径、或仓库自己已经记录的约定。
+- 新增一个仓库就是一个文件：`reference/<repo>.md`，外加 `script/pr-watch.sh` 里的一行。

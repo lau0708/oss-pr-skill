@@ -1,67 +1,53 @@
-# The interview narrative
+# 面试叙事
 
-A merged PR is the artifact; the narrative is the product. The user's stated goal is a PR
-they can *defend* in an interview — decisions, tradeoffs, dead ends — not just a green
-check mark.
+合并的 PR 是产物，叙事才是产品。用户明确的目标是一个能在面试里*经得起追问*的 PR —— 有决定、
+有取舍、有死胡同 —— 而不只是一个绿色的勾。
 
-**Capture it as you go, not afterwards.** A narrative reconstructed from memory a month
-later is generic; one assembled while the evidence is in front of you is specific. Keep a
-running note per PR with the four things below, and update it at each transition.
+**一边做一边记，不要事后补。** 一个月后凭记忆重建出来的叙事是泛泛的；在证据还摆在眼前时拼起来的
+叙事才是具体的。每个 PR 维护一份随手笔记，写下下面四样东西，并在每个转折点更新它。
 
-## Four things to collect during the work
+## 过程中要收集的四样东西
 
-1. **The invariant, in one sentence.** "Two gates of one install resolved
-   `skill_scan.enabled` from different config objects." If you cannot state it without
-   saying "the code," you do not own the change yet.
-2. **The decisions you made and the alternatives you rejected.** This is what interviewers
-   probe. Record the rejected option *and why*: "fixed it in the override rather than
-   refactoring the shared base, because the base is used by the public path and the
-   divergence was only reachable via the override."
-3. **The obstacles and how you got out.** Include the ones that cost real time: the
-   local `cryptography` dlopen failure, the cwd drift, the CI failure that turned out to
-   be main-side drift. A narrated dead end is worth more than a narrated success.
-4. **Evidence, quoted verbatim.** The red assertion text; the `file:line` of the
-   divergent call site; CI counts; **direct quotes from the maintainer's review**. A
-   reviewer independently reproducing your red/green is a third-party validation you
-   cannot manufacture — quote the sentence.
+1. **用一句话说出那个不变量。** 「同一个安装的两道闸门从不同的 config 对象里解析
+   `skill_scan.enabled`。」如果你没法不说「那个代码」就讲清楚它，你就还没有真正拥有这个改动。
+2. **你做过的决定、以及你否决掉的替代方案。** 这正是面试官会追问的地方。记录被否决的选项
+   *以及原因*：「我在覆写里修的，而不是去重构共享基类，因为基类被公开路径使用，而这个分歧只能
+   从覆写到达。」
+3. **遇到的障碍以及你怎么出来的。** 把真正花掉时间的那几个写进去：本地 `cryptography` dlopen
+   失败、cwd 漂移、那个最后发现是 main 侧漂移的 CI 失败。讲清楚一个死胡同，比讲一个成功更值钱。
+4. **逐字引用的证据。** 红色断言文本；分歧调用点的 `file:line`；CI 计数；**维护者 review 的
+   原话**。reviewer 独立复现了你的红/绿，那是一种你造不出来的第三方验证 —— 把原句引下来。
 
-## The seven-part structure
+## 七段式结构
 
-| Part | Content |
+| 段落 | 内容 |
 | --- | --- |
-| **Context** | What the project is, the problem it solves in the agent space, why you picked it, what was missing. |
-| **Contribution** | One sentence: what you implemented/improved/introduced, where it sits, which paths it affects. |
-| **Process** | 3–5 steps focused on *decisions*, not code. "I chose B over A because…" |
-| **Result** | PR status + link; behavioural impact; any quantified metric; maintainer feedback quoted. |
-| **Challenges** | 1–2 real blockers: what it was → how you diagnosed it → how it resolved. |
-| **Reflection** | What you would do differently: technical, process, scope. |
-| **Abilities** | 2–3 capabilities this demonstrates, mapped to what interviewers test. |
+| **背景** | 项目是什么、它在 Agent 领域解决什么问题、你为什么选它、当时缺了什么。 |
+| **贡献** | 一句话：你实现/改进/引入了什么、它在哪一层、影响哪些路径。 |
+| **过程** | 3–5 步，聚焦*决定*而不是代码。「我选了 B 而不是 A，因为……」 |
+| **结果** | PR 状态 + 链接；行为上的影响；任何可量化的指标；引用的维护者反馈。 |
+| **挑战** | 1–2 个真实阻塞：是什么 → 你怎么定位的 → 怎么解决的。 |
+| **反思** | 你会怎么做不一样：技术、流程、范围。 |
+| **能力** | 这展示了哪 2–3 项能力，并对应到面试官考察的点上。 |
 
-## Worked example (deer-flow, both merged)
+## 实例（deer-flow，两个都已合并）
 
-- **Context** — LangGraph super-agent, Python backend + Next.js. Its stores have two
-  backends (SQL vs memory) that must behave identically; only one backend typically gets
-  the regression test.
-- **Contribution** — two one-to-few-line fixes closing invariant violations where an
-  override/back-end diverged from its documented contract.
-- **Process** — read the doc-pinned contract → diff the sibling implementation → find the
-  test asymmetry → write the red test with a control assertion → minimal fix → baseline-
-  compare the environment-broken suite against pristine `main`.
-- **Result** — both merged, each under two days; the reviewer independently reproduced the
-  red/green in a clean worktree at the exact head SHA.
-- **Challenges** — a CI failure that looked like mine was 3 bytes of main-side drift in an
-  unrelated `AGENTS.md` budget (already fixed upstream); proven by `git log origin/main --
-  <file>`, not guessed.
-- **Reflection** — the follow-up commit pushed after the reviewer verified an earlier SHA
-  was fine to bundle, but I should have flagged the head move in the same breath as the
-  push rather than in a separate reply.
-- **Abilities** — reading an unfamiliar codebase against its own docs; isolating a
-  reachable-from-production bug from a merely-different one; separating "I broke it" from
-  "it was already broken" with evidence.
+- **背景** —— LangGraph 超级 Agent，Python 后端 + Next.js。它的 store 有两套后端（SQL vs
+  memory），行为必须完全一致；而通常只有一套后端有回归测试。
+- **贡献** —— 两个一到几行的修复，堵上覆写/后端偏离其文档化契约的不变量违反。
+- **过程** —— 读文档钉死的契约 → diff 兄弟实现 → 找出测试不对称 → 写下带对照断言的红色测试
+  → 最小修复 → 把环境损坏的测试套件与干净的 `main` 做基线对比。
+- **结果** —— 两个都已合并，各不到两天；reviewer 在精确的 head SHA 上、于一个干净的 worktree
+  里独立复现了红/绿。
+- **挑战** —— 一个看起来是我的 CI 失败，其实是一个不相干 `AGENTS.md` 预算里的 3 字节 main 侧
+  漂移（上游已修）；是用 `git log origin/main -- <file>` 证明的，不是猜的。
+- **反思** —— 那个在 reviewer 验证了较早 SHA 之后才推的后续提交，并进去是没问题的；但我本应在
+  推送的同一时间就说明 head 移动了，而不是放到另一条回复里。
+- **能力** —— 对照代码库自己的文档去读一个陌生代码库；从一个「仅仅不同」的差异里隔离出「能从
+  生产到达」的 bug；用证据区分「我弄坏了」和「它本来就是坏的」。
 
-## Anti-patterns
+## 反面案例
 
-- "I added a feature and it got merged." — no decision, no tradeoff, nothing to probe.
-- Listing files changed instead of decisions made.
-- Claiming an impact you did not measure. If you have no number, say what changed
-  behaviourally instead of inventing a percentage.
+- 「我加了个功能，然后它被合并了。」—— 没有决定、没有取舍，没什么可追问的。
+- 罗列改动的文件，而不是做过的决定。
+- 声称一个你没测过的影响。没有数字，就描述行为上变了什么，而不是编一个百分比。

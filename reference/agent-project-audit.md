@@ -1,70 +1,61 @@
-# Auditing an AI-Agent project for contribution candidates
+# 审计一个 AI Agent 项目，找出可贡献的候选
 
-A survey checklist for generating *candidates* when hunting the self-found lane on an
-agent/LLM framework. Adapted from a widely-circulated Chinese guide ("手把手教你为 AI
-Agent 开源项目做贡献").
+这是一份调查清单，用于在 Agent/LLM 框架上找自主发现赛道的**候选**。改编自一篇流传很广的中文
+指南（「手把手教你为 AI Agent 开源项目做贡献」）。
 
-**Read this with the correction in mind.** That guide treats these seven dimensions as
-"what the project is missing → propose it as a feature." Measured against deer-flow and
-ArcReel, greenfield feature PRs from outside contributors land *poorly*: on ArcReel none
-of the recent outside-contributor merges were self-invented features, and on deer-flow
-only a minority of self-invented PRs are the feature kind. So use the dimensions to find
-an **invariant violation, a parity gap, or a missing regression test** — not to pitch a
-redesign. A dimension is a lead, not a proposal.
+**读的时候要带上这个修正。** 那篇指南把这七个维度当成「项目缺什么 → 就把它作为功能提出来」。但
+拿 deer-flow 和 ArcReel 实测下来，外部贡献者提的绿地新功能 PR 落地得**很差**：在 ArcReel 上，
+近期外部贡献者的合并里没有一个是自己发明的新功能；在 deer-flow 上，自己发明的 PR 里也只有少数
+是功能型的。所以要用这些维度去找**不变量违反、同构性缺口，或缺失的回归测试** —— 而不是去推销
+一次重构。维度是线索，不是提案。
 
-## The seven dimensions
+## 七个维度
 
-For each, the useful question is: *does this project do the thing in two places, and do
-the two disagree?* That is where a mergeable bug lives.
+对每一个，有用的问题是：*这个项目是不是在两处做了同一件事，而这两处不一致？* 可合并的 bug 就
+在那里。
 
-1. **Task planning** — ReAct / plan-and-execute / CoT / none. Is a plan persisted for
-   resume? What happens to the plan when a subtask fails — replan, or abort?
-   *Invariant lead:* the failure path usually skips a step the happy path performs.
-2. **Multi-agent topology** — single agent or orchestrator+worker. How is state shared vs
-   passed? Which agent owns which key?
-   *Invariant lead:* two agents writing the same field, or a hand-off that drops context.
-3. **Context management** — hard truncation / rolling window / summarization. What is
-   lost on compression — tool-call history, intermediate results?
-   *Invariant lead:* a summarizer that drops a field the reader still expects.
-4. **Human-in-the-loop** — is there a pause/confirm path for risky operations (file write,
-   outbound API, message send)? Checkpoint and resume?
-   *Invariant lead:* the confirmation gate exists on one route but not its sibling.
-5. **Evaluation** — any eval module or test set? Final-result-only or full trajectory?
-   *Note:* "we have no eval pipeline" is a fine *observation* but a bad first PR — it is a
-   greenfield subsystem. Use it to find what the existing tests *don't* pin instead.
-6. **Tool retrieval & routing** — all tool schemas injected, or retrieved on demand? Is
-   MCP supported? Are descriptions ambiguous enough to cause mis-selection?
-   *Invariant lead:* two tool-loading paths that build the toolset differently.
-7. **Streaming & intermediate-state visibility** — token streaming, event/state
-   subscription for progress. Is a frame namespaced correctly for every consumer?
-   *Invariant lead:* one consumer treats a namespaced frame as a root frame (this was a
-   real deer-flow bug class).
+1. **任务规划** —— ReAct / plan-and-execute / CoT / 无。计划是否会被持久化以便恢复？当某个子
+   任务失败时计划会怎样 —— 重规划，还是中止？
+   *不变量线索：* 失败路径通常会漏掉正常路径会做的一步。
+2. **多 Agent 拓扑** —— 单 Agent，还是 orchestrator+worker。状态是怎么共享 vs 传递的？哪个
+   Agent 拥有哪个 key？
+   *不变量线索：* 两个 Agent 写同一个字段，或一次交接丢了上下文。
+3. **上下文管理** —— 硬截断 / 滑动窗口 / 摘要。压缩时丢了什么 —— 工具调用历史、中间结果？
+   *不变量线索：* 摘要器丢掉了一个读取方仍然期待的字段。
+4. **Human-in-the-loop** —— 对高风险操作（写文件、外发 API、发消息）有没有暂停/确认路径？
+   有没有 checkpoint 与恢复？
+   *不变量线索：* 确认闸门在一条路径上有，在它的兄弟路径上没有。
+5. **评估** —— 有没有 eval 模块或测试集？只看最终结果，还是看完整轨迹？
+   *注意：*「我们没有 eval 流程」是一个不错的*观察*，但作为第一个 PR 很糟 —— 那是一个绿地子系统。
+   用它来找出**现有测试没有**钉住的东西。
+6. **工具检索与路由** —— 是注入全部工具 schema，还是按需检索？支持 MCP 吗？描述是否模糊到会
+   导致误选？
+   *不变量线索：* 两条工具加载路径以不同方式构建工具集。
+7. **流式与中间状态可见性** —— token 流式、用于进度的 event/state 订阅。一帧对每个消费方都
+   namespace 正确吗？
+   *不变量线索：* 某个消费方把带 namespace 的帧当成了根帧（这是 deer-flow 上真实存在的一类 bug）。
 
-## How to run the audit
+## 怎么执行这次审计
 
-- **Every finding must cite a file and a function.** A dimension with no file:line is not
-  a finding, it is an impression. Discard it.
-- Read the docs the repo ships (`AGENTS.md`, `docs/`, architecture notes) *first* — the
-  invariant is often written down there, which is what makes a violation provable rather
-  than a matter of taste. A doc-pinned contract plus a divergent implementation is the
-  strongest possible candidate.
-- Prefer the finding where **one implementation has a regression test and its sibling does
-  not**. The test asymmetry is the fingerprint (see `SKILL.md` step 1).
+- **每一条发现都必须引用一个文件和函数。** 没有 file:line 的维度不是发现，是印象。丢掉它。
+- **先**读仓库自带的文档（`AGENTS.md`、`docs/`、架构笔记）—— 不变量往往就写在那里，这正是让
+  「违反」可证明、而不是见仁见智的原因。文档钉死的契约 + 一个分歧的实现，就是最强的候选。
+- 优先选**一个实现有回归测试、它的兄弟实现没有**的那条发现。测试不对称就是那个指纹（见
+  `SKILL.md` 步骤 1）。
 
-## Candidate output format
+## 候选的输出格式
 
-| # | Dimension | File:function | Invariant violated | Impact | Blast radius | Competing PR? |
+| # | 维度 | File:function | 违反了哪个不变量 | 影响 | 影响面 | 有竞品 PR 吗？ |
 | --- | --- | --- | --- | --- | --- | --- |
 
-Then rank by: (a) provable from a doc or a sibling implementation, (b) ≤ a few files,
-(c) no existing test already covers it. Kill any row whose "competing PR?" column is not
-empty — see `SKILL.md` step 1 on why that lane is a race.
+然后按这样排序：(a) 能从文档或兄弟实现证明，(b) ≤ 几个文件，(c) 没有现存测试已经覆盖它。
+任何「有竞品 PR 吗？」一列非空的行都直接划掉 —— 至于为什么那条赛道是竞速，见 `SKILL.md`
+步骤 1。
 
-## What the original guide adds that is worth keeping
+## 原指南里值得保留的部分
 
-- **Read before you opine:** README, CONTRIBUTING, CHANGELOG, the main entrypoint; then
-  state the project's core agent loop and planning paradigm in 2–3 sentences. If you
-  cannot, you have not read enough to propose anything.
-- **Impact ratings** (high/medium/low) force you to rank instead of listing.
-- **One-line "why this suits my stack"** per candidate — see `interview-narrative.md` for
-  why this matters beyond vanity.
+- **先读再发表意见：** README、CONTRIBUTING、CHANGELOG、主入口；然后用 2–3 句话说出这个项目的
+  核心 Agent 循环和规划范式。说不出来，就说明你还没读够到能提任何建议的程度。
+- **影响评级**（高/中/低）逼着你排序，而不是罗列。
+- 每个候选取一行**「为什么这契合我的技术栈」** —— 它为什么不止于虚荣，见
+  `interview-narrative.md`。
