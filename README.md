@@ -65,14 +65,46 @@ issue，改完没有失败测试，做了无法验证的断言，最后提了一
 | 8 | 盯 CI 和 review —— 三种状态严格区分，没有证据不说「一切正常」 |
 | 9–10 | 沉淀面试叙事；向用户简报 |
 
-## 安装
+## 怎么使用
+
+### 安装
 
 ```bash
 git clone https://github.com/lau0708/oss-pr-skill ~/.claude/skills/oss-pr
 ```
 
-Claude Code 会自动加载，并在诸如「提 PR」「挖下一个 bug」「处理 review」「看 CI 红了」「监控 PR」
-这类请求上触发。
+装到 `~/.claude/skills/` 下，Claude Code 下次启动就会自动加载。也可以放进某个仓库的
+`.claude/skills/`、只对那个项目生效 —— 但优先级是 **企业 > 个人 > 项目**，个人级的同名 skill
+会盖掉项目级的。
+
+### 两种触发方式
+
+- **自动触发** —— 按 `SKILL.md` 的 `description` 匹配你的说法，不用记名字。下面这些都会命中。
+- **手动调用** —— 直接敲 `/oss-pr`。想确认装没装上，用 `/skills` 看列表。
+
+### 可以这么跟它说
+
+| 你说 | 它做什么 |
+| --- | --- |
+| 「给 bytedance/deer-flow 挖一个能合进去的 bug」 | 先侦察合并通道和竞品 PR，再按七个维度找不变量违反，给你一份排好序的候选 |
+| 「这个 bug 帮我做成 PR」 | 划边界 → 写红测试 → 最小修复 → 本地按 CI 验证 → 按仓库模板开 PR |
+| 「看下我那个 PR 的 CI」 | 用 `gh pr checks` 区分「卡在你」「在等维护者」「真的坏了」，而不是凭感觉说正常 |
+| 「处理一下 review」 | 回复行内评论、把有边界的后续改动并进同一个 PR |
+| 「监控这个 PR」 | 起 `pr-watch.sh`，只在维护者活动和 CI 状态迁移时叫你 |
+| 「把这段经历整理成面试叙事」 | 按七段式，用逐字证据（红色断言、`file:line`、维护者原话）填 |
+
+### 一次大概是这样走的
+
+1. 你给出目标仓库和意图。它先做侦察 —— 包括查有没有人已经提过同样的 PR。**这一步经常的结论是
+   「换个目标」**，但那也比写完代码才发现撞车好。
+2. 确定候选后**先划定边界**：核心问题一句话、明确不碰的 2–3 件事、成功标准。然后才动代码。
+3. 失败的测试先写、先在干净的 `main` 上因为声称的原因变红，再改生产代码。红/绿两段证据都会写进
+   PR 正文。
+4. 开 PR 前它会重读自己的 diff。
+5. 之后是盯 CI、处理 review；你随时可以问「现在什么状态」。
+
+它会在该问的地方停下来问你 —— 修复要动到约定边界外的文件、改动会破坏调用方、有两种各有真实代价
+的合理设计、需要新依赖，这些都会先问，不会自己扩大范围。
 
 ## 目录结构
 
@@ -125,6 +157,9 @@ interface, the one without a regression test is where the bug lives), **reusable
 shapes** (a copy-override that silently drops an argument; a side-effect owned by a shared
 ingress path that self-persisting implementations never inherit), and **reachability as a
 gate** (an elegant divergence no production caller can construct is a wasted day).
+
+Install by cloning into `~/.claude/skills/`; it then auto-triggers on requests like "find the
+next bug in \<repo\>" or "handle the review", or can be invoked explicitly with `/oss-pr`.
 
 ## License
 
