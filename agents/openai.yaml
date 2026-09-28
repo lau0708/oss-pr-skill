@@ -1,0 +1,4 @@
+interface:
+  display_name: "oss-pr"
+  short_description: "端到端落地一个可合并的开源 PR"
+  default_prompt: "用 /oss-pr 为目标仓库端到端落地一个开源 PR：先侦察合并通道与竞品 PR，优先自己挖不变量 bug 并划定边界，用红/绿测试证明后做最小修复，再按仓库模板开 PR、盯 CI、处理 review，并沉淀可经得起追问的面试叙事。"

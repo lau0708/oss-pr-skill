@@ -69,6 +69,8 @@ issue，改完没有失败测试，做了无法验证的断言，最后提了一
 
 ### 安装
 
+**Claude Code**
+
 ```bash
 git clone https://github.com/lau0708/oss-pr-skill ~/.claude/skills/oss-pr
 ```
@@ -76,6 +78,22 @@ git clone https://github.com/lau0708/oss-pr-skill ~/.claude/skills/oss-pr
 装到 `~/.claude/skills/` 下，Claude Code 下次启动就会自动加载。也可以放进某个仓库的
 `.claude/skills/`、只对那个项目生效 —— 但优先级是 **企业 > 个人 > 项目**，个人级的同名 skill
 会盖掉项目级的。
+
+**Codex**
+
+```bash
+git clone https://github.com/lau0708/oss-pr-skill ~/.codex/skills/oss-pr
+```
+
+`~/.codex/skills/<name>/` 下的技能会被自动发现，不用改 `config.toml`。也可以用 Codex 自带的
+安装器：
+
+```bash
+python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
+  --repo lau0708/oss-pr-skill --path . --name oss-pr
+```
+
+仓库里带了 `agents/openai.yaml`，就是给 Codex 用的（同一份 `SKILL.md` 两边通用）。
 
 ### 两种触发方式
 
@@ -109,21 +127,22 @@ git clone https://github.com/lau0708/oss-pr-skill ~/.claude/skills/oss-pr
 ## 目录结构
 
 ```
-SKILL.md                         # 与仓库无关的主干流程（步骤 0–10）
-reference/agent-project-audit.md # 审计 Agent 项目真实 bug 的 7 个维度
-reference/interview-narrative.md # 如何把这段工作变成面试素材
-reference/deerflow.md            # 实战附录：bytedance/deer-flow
-script/pr-watch.sh               # 表驱动的 PR 监控脚本
+SKILL.md                          # 与仓库无关的主干流程（步骤 0–10）
+agents/openai.yaml                # Codex 侧清单（display_name / default_prompt）
+references/agent-project-audit.md # 审计 Agent 项目真实 bug 的 7 个维度
+references/interview-narrative.md # 如何把这段工作变成面试素材
+references/deerflow.md            # 实战附录：bytedance/deer-flow
+scripts/pr-watch.sh               # 表驱动的 PR 监控脚本
 ```
 
-新增一个仓库只需一个文件：`reference/<仓库>.md`，写它的规矩、合并通道、已排查干净的区域、
+新增一个仓库只需一个文件：`references/<仓库>.md`，写它的规矩、合并通道、已排查干净的区域、
 可复用的 bug 形状，以及 CI 机制。
 
 ## `pr-watch.sh`
 
 ```bash
 # 先编辑 WATCH 数组："owner/repo number label"
-bash script/pr-watch.sh
+bash scripts/pr-watch.sh
 ```
 
 每行 stdout 就是一条通知：来自真人的维护者评论与 review（机器人、CLA 应用和你自己的评论都会被
