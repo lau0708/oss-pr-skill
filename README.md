@@ -2,11 +2,11 @@
 
 **一个 Claude Code skill：把「我应该给开源做点贡献」变成一套可复现、以证据驱动的流程。**
 
-它已被用于向 [deer-flow](https://github.com/bytedance/deer-flow)（83k★ 的 LangGraph Agent 项目）提交真实修复 —— 两个已合并，第三个在审核中。
+它已被用于向 [deer-flow](https://github.com/bytedance/deer-flow)（83k★ 的 LangGraph Agent 项目）提交真实修复 —— 三个已全部合并。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-8A63D2)](https://claude.com/claude-code)
-![Merged into deer-flow](https://img.shields.io/badge/merged%20into%20deer--flow-2-brightgreen)
+![Merged into deer-flow](https://img.shields.io/badge/merged%20into%20deer--flow-3-brightgreen)
 
 ---
 
@@ -16,7 +16,7 @@
 | --- | --- | --- | --- |
 | [#5663](https://github.com/bytedance/deer-flow/pull/5663) | `fix(runtime)`：让原子线程操作共享同一个变更位置 | **已合并** | 约 12 小时 |
 | [#5703](https://github.com/bytedance/deer-flow/pull/5703) | `fix(skills)`：用户级安装的内容扫描改从自身配置解析 | **已合并** | 约 8 小时 |
-| [#5998](https://github.com/bytedance/deer-flow/pull/5998) | `fix(channels)`：为 Feishu/DingTalk 入站附件补上沙箱读权限位 | 审核中 | — |
+| [#5998](https://github.com/bytedance/deer-flow/pull/5998) | `fix(channels)`：为 Feishu/DingTalk 入站附件补上沙箱读权限位 | **已合并** | 约 4 小时 |
 
 三个都是**自主发现**的：没有提 issue，也没有事先询问维护者。每个 diff 都很小（含测试约 110–145
 行），修的却是仓库自己已经写进文档、而某个实现悄悄违反了的契约。
